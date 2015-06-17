@@ -10,9 +10,9 @@ The imits restful importer requires a configuration file CFG.pl to be set up loc
 
 package CFG;
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------
 # # # Access to the database
-# # # -----------------------------------------------------------------------------
+# # # --------------------------------------
  $HOST       = 'XXXXXXXX';
  $USER       = 'XXXXXXXX';
  $PASSWD     = 'XXXXXXXX';
