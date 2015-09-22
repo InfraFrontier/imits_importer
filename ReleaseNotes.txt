@@ -1,0 +1,7 @@
+Release Notes
+
+22 Sep 2015:
+- Issue with non updated/inserted tm1.1 phenotyping attempts fixed
+- Log4perl support added for better message handling
+- Error in allele nomenclatures reported without stopping the script to complete
+- EMMA-657: New HMGU MTA version for strains inserted from iMits
