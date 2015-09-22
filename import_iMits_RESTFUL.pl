@@ -1656,12 +1656,7 @@ sub compute_strain_nomenclature {
 
   return $strain_name;
 }
-
-# BUSINESS RULE 1: IKMC (iMits) strains produced by HMGU 
-# tm1a/tm1e: IF MI date before 25 Oct 2011 THEN set strains.mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
-# ELSE (i.e. if MI date is 25 Oct 2011 or later) THEN set strains.mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
-# tm1b/tm1c: I understand there is no MI date for tm1b strains (but rather a Cre excision complete date). 
-# Anyway, ALL Cre or Frt excised strains produced by HMGU need to be linked to 'HMGU-SMTA-EMMA_2014.pdf'.               
+         
 sub compute_mta_file {
   my ($pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele, $mi_date) = @_;
     
@@ -1669,25 +1664,31 @@ sub compute_mta_file {
   print STDOUT "YEAR $year\n";
   print STDOUT "compute_mta_file: $pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele\n";
   my $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
-	
+
+	# BUSINESS RULE 1: IKMC (iMits) strains produced by HMGU 
+	# tm1a/tm1e: IF MI date before 25 Oct 2011 THEN set strains.mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
+	# ELSE (i.e. if MI date is 25 Oct 2011 or later) THEN set strains.mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
+	# tm1b/tm1c: I understand there is no MI date for tm1b strains (but rather a Cre excision complete date). 
+	# Anyway, ALL Cre or Frt excised strains produced by HMGU need to be linked to 'HMGU-SMTA-EMMA_2014.pdf'.      
   if ($distribution_center eq 'HMGU') {
+  	$log->debug($allele);
     # Check allele nomenclature
     if ($allele =~ /tm\d+a/ || $allele =~ /tm\d+e/) {
-      if ( $year < 2011 || ($year == 2011 && ($month < 10 || ($month == 10 && $day < 25))) ) { # 25 Oct 2011
-	$mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
+      if ( $year < 2011 || ($year == 2011 && ($month < 10 || ($month == 10 && $day < 25)))) { # 25 Oct 2011
+      	if ($pipeline eq 'EUCOMM') {
+			$mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
+		}
       } else {
-	$mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
+		$mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
       }
-    } elsif ($allele =~/tm\d+b/ || $allele =~ /tm\d+c/) {
+    } elsif ($allele =~/tm\d+b/ || $allele =~ /tm\d+c/ || $allele =~ /tm\d\.\d{1}/) {
       # tm1b: Reporter-tagged deletion allele (post-Cre)
-      print "FOUND tm1b\n";
       $mta_file = 'HMGU-SMTA-EMMA_2014.pdf';
     }
-    print "-----------\n";
-    print $mta_file . "\n";
-    print "-----------\n";
+    $log->info($mta_file);
     return $mta_file;
   }
+  
   # When we have read a phenotyping attempt
   if ($phenotyping_attempt) {
 
