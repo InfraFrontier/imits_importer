@@ -1689,6 +1689,29 @@ sub compute_mta_file {
     return $mta_file;
   }
   
+  # Business Rule 2:
+  # Link WTSI lines to the following MTA files (strains.mta_file):
+  # EUCOMM lines --> MTA_EUCOMM_for_EMMA_SANG.pdf
+  # EUCOMMTools lines (KO and Cre) --> MTA-Sanger-Standard-form_EUCOMMTools.pdf
+  # KOMP ESC/CRISPR/ncRNA lines --> MTA-SangerMP-Standard-Form.pdf
+  if ($distribution_center eq 'SANG' && $repository eq 'SANG') {
+  	if ($pipeline eq 'EUCOMM') {
+  		$mta_file = "MTA_EUCOMM_for_EMMA_SANG.pdf"
+  	} 
+  	elsif (($pipeline eq 'EUCOMMTools' || $pipeline eq 'EUCOMMToolsCre')) { 
+  		$mta_file = "MTA-Sanger-Standard-form_EUCOMMTools.pdf";
+  	}
+  	elsif ($pipeline eq 'KOMP-CSD') {
+  		$mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
+  	} else {
+  		die "WTSI lines: There are no business rule to associate an MTA file for pipeline $pipeline";
+  	}
+  	return $mta_file;
+  }
+  
+  # Business Rule 3:
+  # 
+  
   # When we have read a phenotyping attempt
   if ($phenotyping_attempt) {
 
