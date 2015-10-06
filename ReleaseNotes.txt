@@ -1,5 +1,9 @@
 Release Notes
 
+05 Oct 2015:
+- Add allele project 'MGP' for bespoke Sanger lines
+- Clean MTA assignment rules
+
 24 Sep 2015: 
 - EMMA-711: Link WTSI lines to the following MTA files:
 	EUCOMM lines --> MTA_EUCOMM_for_EMMA_SANG.pdf
