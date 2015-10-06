@@ -1665,11 +1665,11 @@ sub compute_mta_file {
   print STDOUT "compute_mta_file: $pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele\n";
   my $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
 
-	# BUSINESS RULE 1: IKMC (iMits) strains produced by HMGU 
-	# tm1a/tm1e: IF MI date before 25 Oct 2011 THEN set strains.mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
-	# ELSE (i.e. if MI date is 25 Oct 2011 or later) THEN set strains.mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
-	# tm1b/tm1c: I understand there is no MI date for tm1b strains (but rather a Cre excision complete date). 
-	# Anyway, ALL Cre or Frt excised strains produced by HMGU need to be linked to 'HMGU-SMTA-EMMA_2014.pdf'.      
+  # BUSINESS RULE 1: IKMC (iMits) strains produced by HMGU 
+  # tm1a/tm1e: IF MI date before 25 Oct 2011 THEN set strains.mta_file = 'MTA_EUCOMM_for_EMMA_HMGU.pdf'
+  # ELSE (i.e. if MI date is 25 Oct 2011 or later) THEN set strains.mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
+  # tm1b/tm1c: I understand there is no MI date for tm1b strains (but rather a Cre excision complete date). 
+  # Anyway, ALL Cre or Frt excised strains produced by HMGU need to be linked to 'HMGU-SMTA-EMMA_2014.pdf'.      
   if ($distribution_center eq 'HMGU') {
   	$log->debug($allele);
     # Check allele nomenclature
@@ -1694,7 +1694,8 @@ sub compute_mta_file {
   # EUCOMM lines --> MTA_EUCOMM_for_EMMA_SANG.pdf
   # EUCOMMTools lines (KO and Cre) --> MTA-Sanger-Standard-form_EUCOMMTools.pdf
   # KOMP ESC/CRISPR/ncRNA lines --> MTA-SangerMP-Standard-Form.pdf
-  if ($distribution_center eq 'SANG' && $repository eq 'SANG') {
+  
+  if ($repository eq 'SANG' || $distribution_center eq 'SANG') {
   	if ($pipeline eq 'EUCOMM') {
   		$mta_file = "MTA_EUCOMM_for_EMMA_SANG.pdf"
   	} 
@@ -1703,41 +1704,37 @@ sub compute_mta_file {
   	}
   	elsif ($pipeline eq 'KOMP-CSD') {
   		$mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
+  	}
+  	elsif ($pipeline eq 'Sanger MGP') {
+  		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
   	} else {
   		die "WTSI lines: There are no business rule to associate an MTA file for pipeline $pipeline";
   	}
+  	$log->info($mta_file);
   	return $mta_file;
   }
-  
-  # Business Rule 3:
-  # 
-  
+
+  # For all other centers
   # When we have read a phenotyping attempt
   if ($phenotyping_attempt) {
 
     if ($pipeline eq 'EUCOMM') {
       $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
 
-      if ($distribution_center eq 'MRC') {
-	$mta_file = "Master_Mouse_MTA_for_IMPC_Jan-2013.doc";
+      if ($distribution_center eq 'MRC' && $repository ne 'SANG') {
+	    $mta_file = "Master_Mouse_MTA_for_IMPC_Jan-2013.doc";
       } elsif ($distribution_center eq 'HMGU') {
-	$mta_file = "MTA_EUCOMM-tm1b_for_EMMA_HMGU.pdf";
+	    $mta_file = "MTA_EUCOMM-tm1b_for_EMMA_HMGU.pdf";
       } elsif ($distribution_center eq 'ICS') {
-	$mta_file = "MTA_EUCOMM-tm1b_for_EMMA_ICS.pdf";
+	    $mta_file = "MTA_EUCOMM-tm1b_for_EMMA_ICS.pdf";
       }
-    } elsif ($pipeline eq 'KOMP-CSD' && $repository eq 'SANG') {
-      $mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
     }
 
   } else {
     if (($pipeline eq 'EUCOMMTools' || $pipeline eq 'EUCOMMToolsCre')) { 
-      if ( $repository eq 'SANG' ) {
-	$mta_file = "MTA-Sanger-Standard-form_EUCOMMTools.pdf";
-      } elsif ( $repository eq 'CNR' ) {
-	$mta_file = "MTA-CNR-Standard-form_EUCOMMTools.pdf";
+      if ( $repository eq 'CNR' ) {
+	    $mta_file = "MTA-CNR-Standard-form_EUCOMMTools.pdf";
       }
-    } elsif ($pipeline eq 'KOMP-CSD' && $repository eq 'SANG') {
-      $mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
     } elsif ($pipeline eq 'KOMP-Regeneron' && $repository eq 'IMG') {
       $mta_file = "MTA_IMG.pdf";
     } elsif ($consortium eq 'BaSH' && $repository eq 'MRC') {
@@ -1794,8 +1791,10 @@ sub check_pipeline_project {
       $allele_project = ($pipeline eq 'KOMP-CSD' || $pipeline eq 'KOMP-Regeneron') ? "KOMP" : "EUCOMM";
     } elsif ($pipeline eq "Sanger MGP" && $allele =~ /KOMP/) {
       $allele_project = "KOMP";
+    } elsif ($pipeline eq "Sanger MGP" && $allele =~ /MGP/) {
+      $allele_project = "MGP";      
     } else {
-      print "ERROR: unknown allele project for pipeline $pipeline and allele $allele - PLEASE FIX THIS - and restart the script\n";
+      print "ERROR: unknown allele project for pipeline '$pipeline' and allele '$allele' - PLEASE FIX THIS - and restart the script\n";
       exit 1;
     }
   } else {
