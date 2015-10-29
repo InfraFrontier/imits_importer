@@ -1,0 +1,17 @@
+Release Notes
+
+05 Oct 2015:
+- Add allele project 'MGP' for bespoke Sanger lines
+- Clean MTA assignment rules
+
+24 Sep 2015: 
+- EMMA-711: Link WTSI lines to the following MTA files:
+	EUCOMM lines --> MTA_EUCOMM_for_EMMA_SANG.pdf
+	EUCOMMTools lines (KO and Cre) --> MTA-Sanger-Standard-form_EUCOMMTools.pdf
+	KOMP ESC/CRISPR/ncRNA lines --> MTA-SangerMP-Standard-Form.pdf
+
+22 Sep 2015:
+- Issue with non updated/inserted tm1.1 phenotyping attempts fixed
+- Log4perl support added for better message handling
+- Error in allele nomenclatures reported without stopping the script to complete
+- EMMA-657: New HMGU MTA version for strains inserted from iMits
