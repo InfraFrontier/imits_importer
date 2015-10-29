@@ -50,7 +50,8 @@ my @production_centers =
      'CIPHE',
      'SEAT',
      'IMG',
-     'INFRAFRONTIER-Oulu');
+     'INFRAFRONTIER-Oulu',
+     'INFRAFRONTIER-VETMEDUNI');
 
 my %tm_attempts = ( 1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth', 5 => 'fifth', 6 => 'sixth', 7 => 'seventh');
 my %ilar_codes = {};
@@ -561,9 +562,9 @@ print "URL Allele3:      $urlallele\n";
 
 		    # convert iMits centre codes to an EMMA standard one
 		    $repository = &convert_center_information($repository);
-		   # print "ALTERED DISTRIBUTION CENTRE IS NOW " .$distribution_center . "\n" if ($debug);
+		    print "ALTERED DISTRIBUTION CENTRE IS NOW " .$distribution_center . "\n" if ($debug);
 $distribution_center = &convert_center_information($distribution_center);
-#print "ALTERED DISTRIBUTION CENTRE IS NOW " .$distribution_center . "\n" if ($debug);
+print "ALTERED DISTRIBUTION CENTRE IS NOW " .$distribution_center . "\n" if ($debug);
 		    $dist_ilar_code = &get_ilar_code($distribution_center);
 		    $ilar_code = "/" . &get_ilar_code($repository);
 
@@ -1007,7 +1008,7 @@ $phenotype_attempts
 		    }
 
 		    print "Execute global emma update for Marker:$marker_symbol with access $str_access and status $str_status\n" if ($debug);
-
+print "Dollar repository is &$repository and distribution centre is $distribution_center\n" if ($debug);
 		    &update_emma_database($strain_name,
 					  $mutation_type,
 					  $marker_symbol,
@@ -1536,7 +1537,8 @@ sub convert_center {
     $imits_center =~ s/GSF/HMGU/;
     $imits_center =~ s/Monterotondo/CNR/;
     $imits_center =~ s/Oulu/UNIOULU/;
-$imits_center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
+    $imits_center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
+    $imits_center =~ s/INFRAFRONTIER-VETMEDUNI/VETMEDUNI/;
     
     return $imits_center;
 }
@@ -1801,8 +1803,9 @@ sub convert_center_information {
     $center =~ s/Monterotondo/CNR/; 
     $center =~ s/SEAT/CNRS/;
     $center =~ s/Oulu/UNIOULU/;
-$center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
+    $center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
     $center =~ s/Fleming/BSRC/;
+    $center =~ s/INFRAFRONTIER-VETMEDUNI/VETMEDUNI/;
 
     return $center;
 }
@@ -1850,7 +1853,8 @@ sub is_emma_repository {
 	    $repository eq 'CIPHE' || 
 	    $repository eq 'SEAT' || 
 	    $repository eq 'IMG' ||
-            $repository eq 'INFRAFRONTIER-Oulu');
+            $repository eq 'INFRAFRONTIER-Oulu' ||
+            $repository eq 'INFRAFRONTIER-VETMEDUNI');
 }
 
 #
@@ -1886,7 +1890,8 @@ sub emma_compliant {
 				   $repository eq 'CIPHE' || 
 				   $repository eq 'SEAT' || 
 				   $repository eq 'IMG' ||
-                                   $repository eq 'INFRAFRONTIER-Oulu')) ? 1 : 0;
+                                   $repository eq 'INFRAFRONTIER-Oulu' ||
+				   $repository eq 'INFRAFRONTIER-VETMEDUNI')) ? 1 : 0;
 
     my $komp_compliance_test = (($pipeline eq 'KOMP-CSD') && 
 				($repository eq 'HMGU' || 
