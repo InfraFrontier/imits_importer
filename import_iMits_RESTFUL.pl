@@ -1233,7 +1233,7 @@ sub update_emma_database{
 
       $sql = "INSERT INTO strains (available_to_order, res_id, code_internal, name, bg_id_bg, per_id_per, per_id_per_contact, archive_id, charact_gen, pheno_text, str_status,str_access,str_type,mta_file,maintenance, mutant_viable, mutant_fertile, require_homozygous, immunocompromised, colony_prefix, ls_consortium) VALUES ('$available_to_order','$res_id','$epd_id','$strain_name','3270','$id_per','$id_per_contact','$archive_id',\"$genetic_description\",\"$phenotype_description\",'$str_status','$str_access','MSR','$mta_file','$maintenance','$mutant_viable','$mutant_fertile','$require_homozygous','$immunocompromised', '$colony_name', '$consortium')";
       &execute_query($sql, $emma_dbh);
-      my ($idStr) = &execute_query("SELECT id_str FROM strains WHERE name ='$strain_name'");
+      my ($idStr) = &execute_query("SELECT id_str FROM strains WHERE name ='$strain_name'",$emma_dbh);
 my $emmaIdPrefix = '';
 if ($idStr < 10000) {
 	$emmaIdPrefix = 'EM:0';
