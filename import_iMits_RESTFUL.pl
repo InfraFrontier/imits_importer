@@ -43,17 +43,18 @@ my %recessive_alleles_chromosome_location = (
 					    );
 
 my @production_centers = 
-  ('GSF',
-   'HMGU',
-   'ICS',
-   'Monterotondo',
-   'MRC - Harwell',
-   'Harwell',
-   'WTSI',
-   'CIPHE',
-   'SEAT',
-   'IMG',
-   'INFRAFRONTIER-Oulu');
+    ('GSF',
+     'HMGU',
+     'ICS',
+     'Monterotondo',
+     'MRC - Harwell',
+     'Harwell',
+     'WTSI',
+     'CIPHE',
+     'SEAT',
+     'IMG',
+     'INFRAFRONTIER-Oulu',
+     'INFRAFRONTIER-VETMEDUNI');
 
 my %tm_attempts = ( 1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth', 5 => 'fifth', 6 => 'sixth', 7 => 'seventh');
 my %ilar_codes = {};
@@ -489,8 +490,8 @@ sub processAttempts {
 
 	  } else {
 
-	    if (length($decoded->{'allele_symbol'}) > 0) {
-	      $allele = $decoded->{'allele_symbol'};
+	    if (length($decoded->{'mouse_allele_symbol'}) > 0) {
+	      $allele = $decoded->{'mouse_allele_symbol'};
 	    } elsif (length($decoded->{'es_cell_allele_symbol'}) > 0) {
 	      $allele = $decoded->{'es_cell_allele_symbol'};
 	    }
@@ -871,8 +872,15 @@ sub processAttempts {
 
 	    $sql = "select id_str from laboratories, archive, strains where archive_id=archive.id and code_internal='$epd_id' and id_labo=lab_id_labo and submitted='$mi_date' and code = '$distribution_center' and str_access = 'P' and genotype_file is null"; # and colony_prefix = '$colony_prefix'";
 	    my ($new_id_str) = &execute_query($sql, $emma_dbh);
-	    my $new_geno_file = "EM0".$new_id_str."_geno.pdf";
-	    if ($new_id_str && $genotype_file) {
+	    #my $new_geno_file = "EM0".$new_id_str."_geno.pdf";
+	    my $genoFileEmmaIdPrefix;
+	if ($new_id_str < 10000) {
+        $genoFileEmmaIdPrefix = 'EM:0';
+      } else {
+              $genoFileEmmaIdPrefix = 'EM:';
+              }
+		my $new_geno_file = $genoFileEmmaIdPrefix.$new_id_str."_geno.pdf";
+              if ($new_id_str && $genotype_file) {
 	      system("cp /nfs/panda/emma/genotype_protocols/$genotype_file /nfs/panda/emma/genotype_protocols/$new_geno_file");
 	      system("svn add /nfs/panda/emma/genotype_protocols/$new_geno_file --username philw --password 9IDP26TI");
 	      system("svn commit -m \"\" /nfs/panda/emma/genotype_protocols/$new_geno_file --username philw --password 9IDP26TI");
@@ -996,7 +1004,6 @@ sub processAttempts {
 	    $str_access = 'N';
 	  }
 		    
-	  # 
 	  if ($str_access eq 'N') {
 	    $str_status = 'ARCHD';
 	  } else {
@@ -1226,8 +1233,17 @@ sub update_emma_database{
 
       $sql = "INSERT INTO strains (available_to_order, res_id, code_internal, name, bg_id_bg, per_id_per, per_id_per_contact, archive_id, charact_gen, pheno_text, str_status,str_access,str_type,mta_file,maintenance, mutant_viable, mutant_fertile, require_homozygous, immunocompromised, colony_prefix, ls_consortium) VALUES ('$available_to_order','$res_id','$epd_id','$strain_name','3270','$id_per','$id_per_contact','$archive_id',\"$genetic_description\",\"$phenotype_description\",'$str_status','$str_access','MSR','$mta_file','$maintenance','$mutant_viable','$mutant_fertile','$require_homozygous','$immunocompromised', '$colony_name', '$consortium')";
       &execute_query($sql, $emma_dbh);
-      $sql = "UPDATE strains set emma_id = concat('EM:0',cast(id_str as char)) WHERE name ='$strain_name'";
-      &execute_query($sql, $emma_dbh);
+      my ($idStr) = &execute_query("SELECT id_str FROM strains WHERE name ='$strain_name'",$emma_dbh);
+my $emmaIdPrefix = '';
+if ($idStr < 10000) {
+	$emmaIdPrefix = 'EM:0';
+#$sql = "UPDATE strains set emma_id = concat('EM:0',cast(id_str as char)) WHERE name ='$strain_name'";
+      } else {
+	$emmaIdPrefix = 'EM:';
+}
+$sql = "UPDATE strains set emma_id = concat('$emmaIdPrefix','$idStr') WHERE name ='$strain_name'";
+
+&execute_query($sql, $emma_dbh);
 	    
       my ($new_id_str) = &execute_query("SELECT max(id_str) FROM strains", $emma_dbh);
       $rtool_id = '9';
@@ -1252,7 +1268,12 @@ sub update_emma_database{
       my ($original_id_str) = &check_existing_strain($strain_name, $epd_id, $colony_name, $mi_date, $id_labo, 0, 1);
 
       if ($original_id_str) {
-	$sql = "UPDATE web_requests SET str_id_str = '$new_id_str', strain_id = CONCAT('EM:0','$new_id_str'), lab_id_labo = $id_labo WHERE str_id_str='$original_id_str' AND req_status ='TO_PR'";
+if ($original_id_str < 10000) { 
+	$emmaIdPrefix = 'EM:0';
+} else {
+	$emmaIdPrefix = 'EM:';
+}
+	$sql = "UPDATE web_requests SET str_id_str = '$new_id_str', strain_id = CONCAT('$emmaIdPrefix','$new_id_str'), lab_id_labo = $id_labo WHERE str_id_str='$original_id_str' AND req_status ='TO_PR'";
 	&execute_query($sql, $emma_dbh);
       }
 
@@ -1523,14 +1544,14 @@ sub reject_strain_access_in_emma {
 sub convert_center {
   my ($imits_center) = @_;
     
-  $imits_center =~ s/WTSI/SANG/;
-  $imits_center =~ s/MRC - Harwell/MRC/;
-  $imits_center =~ s/Harwell/MRC/;
-  $imits_center =~ s/GSF/HMGU/;
-  $imits_center =~ s/Monterotondo/CNR/;
-  $imits_center =~ s/Oulu/UNIOULU/;
-  $imits_center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
-    
+    $imits_center =~ s/WTSI/SANG/;
+    $imits_center =~ s/MRC - Harwell/MRC/;
+    $imits_center =~ s/Harwell/MRC/;
+    $imits_center =~ s/GSF/HMGU/;
+    $imits_center =~ s/Monterotondo/CNR/;
+    $imits_center =~ s/Oulu/UNIOULU/;
+    $imits_center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
+    $imits_center =~ s/INFRAFRONTIER-VETMEDUNI/VETMEDUNI/;
   return $imits_center;
 }
 
@@ -1813,19 +1834,20 @@ sub check_pipeline_project {
 }
 
 sub convert_center_information {
-  my ($center) = @_;
-  # use CIPHE for CIPHE, IMG for IMG, CNRS for SEAT
-  $center =~ s/WTSI/SANG/;
-  $center =~ s/MRC - Harwell/MRC/;
-  $center =~ s/Harwell/MRC/;
-  $center =~ s/GSF/HMGU/;
-  $center =~ s/Monterotondo/CNR/; 
-  $center =~ s/SEAT/CNRS/;
-  $center =~ s/Oulu/UNIOULU/;
-  $center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
-  $center =~ s/Fleming/BSRC/;
+    my ($center) = @_;
+    # use CIPHE for CIPHE, IMG for IMG, CNRS for SEAT
+    $center =~ s/WTSI/SANG/;
+    $center =~ s/MRC - Harwell/MRC/;
+    $center =~ s/Harwell/MRC/;
+    $center =~ s/GSF/HMGU/;
+    $center =~ s/Monterotondo/CNR/; 
+    $center =~ s/SEAT/CNRS/;
+    $center =~ s/Oulu/UNIOULU/;
+    $center =~ s/INFRAFRONTIER-Oulu/UNIOULU/;
+    $center =~ s/Fleming/BSRC/;
+    $center =~ s/INFRAFRONTIER-VETMEDUNI/VETMEDUNI/;
 
-  return $center;
+    return $center;
 }
 
 sub get_ilar_code {
@@ -1859,19 +1881,20 @@ sub build_ilar_codes {
 #
 
 sub is_emma_repository {
-  my ($repository) = @_;
+    my ($repository) = @_;
 
-  return ($repository eq 'GSF' || 
-	  $repository eq 'HMGU' || 
-	  $repository eq 'ICS' || 
-	  $repository eq 'Monterotondo' || 
-	  $repository eq 'MRC - Harwell' || 
-	  $repository eq 'Harwell' || 
-	  $repository eq 'WTSI' || 
-	  $repository eq 'CIPHE' || 
-	  $repository eq 'SEAT' || 
-	  $repository eq 'IMG' ||
-	  $repository eq 'INFRAFRONTIER-Oulu');
+    return ($repository eq 'GSF' || 
+	    $repository eq 'HMGU' || 
+	    $repository eq 'ICS' || 
+	    $repository eq 'Monterotondo' || 
+	    $repository eq 'MRC - Harwell' || 
+	    $repository eq 'Harwell' || 
+	    $repository eq 'WTSI' || 
+	    $repository eq 'CIPHE' || 
+	    $repository eq 'SEAT' || 
+	    $repository eq 'IMG' ||
+            $repository eq 'INFRAFRONTIER-Oulu' ||
+            $repository eq 'INFRAFRONTIER-VETMEDUNI');
 }
 
 #
@@ -1883,22 +1906,35 @@ sub is_emma_repository {
 # valid distribution center
 #
 sub emma_compliant {
-  my ($marker_symbol, $colony_prefix, $pipeline, $repository, $distribution_center, $phenotyping_attempt, $genotype_confirmed, $emma) = @_;
+    my ($marker_symbol, $colony_prefix, $pipeline, $repository, $distribution_center, $phenotyping_attempt, $genotype_confirmed, $emma) = @_;
 
-  my $marker_exclusion_test = !($marker_symbol eq 'Wls' && $colony_prefix eq 'gpr177 albino' && $emma == 0) ? 1 : 0;
-  my $pipeline_compliance_test = ($pipeline eq 'Sanger MGP' || $pipeline eq 'MGP' || $pipeline eq 'CRISPR/CAS9') ? 1 : 0;
+    my $marker_exclusion_test = !($marker_symbol eq 'Wls' && $colony_prefix eq 'gpr177 albino' && $emma == 0) ? 1 : 0;
+    my $pipeline_compliance_test = ($pipeline eq 'Sanger MGP' || $pipeline eq 'MGP' || $pipeline eq 'CRISPR/CAS9') ? 1 : 0;
 
-  my $eucommtools_cre_compliance_test = ($pipeline eq 'EUCOMMToolsCre' && ( 
-									   $repository eq 'WTSI' || $repository eq 'Monterotondo' ) &&
-					 ($distribution_center eq 'WTSI' ||
-					  $distribution_center eq 'Harwell' ||
-					  $distribution_center eq 'Monterotondo' ||
-					  $distribution_center  eq 'HMGU')
-					) ? 1 : 0;
+    my $eucommtools_cre_compliance_test = ($pipeline eq 'EUCOMMToolsCre' && ( 
+					   $repository eq 'WTSI' || $repository eq 'Monterotondo' ) &&
+					   ($distribution_center eq 'WTSI' ||
+					    $distribution_center eq 'Harwell' ||
+                                                $distribution_center eq 'Monterotondo' ||
+						$distribution_center  eq 'HMGU')
+					   ) ? 1 : 0;
 
-  my $eucomm_compliance_test = (($pipeline eq 'EUCOMM' || $pipeline eq 'EUCOMMTools') && 
-				($repository eq 'GSF' || 
-				 $repository eq 'HMGU' || 
+    my $eucomm_compliance_test = (($pipeline eq 'EUCOMM' || $pipeline eq 'EUCOMMTools') && 
+				  ($repository eq 'GSF' || 
+				   $repository eq 'HMGU' || 
+				   $repository eq 'ICS' || 
+				   $repository eq 'Monterotondo' || 
+				   $repository eq 'MRC - Harwell' || 
+				   $repository eq 'Harwell' || 
+				   $repository eq 'WTSI' || 
+				   $repository eq 'CIPHE' || 
+				   $repository eq 'SEAT' || 
+				   $repository eq 'IMG' ||
+                                   $repository eq 'INFRAFRONTIER-Oulu' ||
+				   $repository eq 'INFRAFRONTIER-VETMEDUNI')) ? 1 : 0;
+
+    my $komp_compliance_test = (($pipeline eq 'KOMP-CSD') && 
+				($repository eq 'HMGU' || 
 				 $repository eq 'ICS' || 
 				 $repository eq 'Monterotondo' || 
 				 $repository eq 'MRC - Harwell' || 
