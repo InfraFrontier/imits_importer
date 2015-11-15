@@ -1703,7 +1703,7 @@ sub compute_mta_file {
   		$mta_file = "MTA-Sanger-Standard-form_EUCOMMTools.pdf";
   	}
   	elsif ($pipeline eq 'KOMP-CSD') {
-  		$mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
+  		$mta_file = "MTA-Sanger-Standard-Form.pdf";
   	}
   	elsif ($pipeline eq 'Sanger MGP') {
   		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
