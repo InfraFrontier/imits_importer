@@ -1,7 +1,16 @@
 Release Notes
 
+16 Nov 2015:
+- EMMA-676: WTSI/MRC MTA workflow:
+	Fix the issue with WTSI/MRC MTA not assigned. The issue was the fact that MTA were
+	never assigned. 
+	
+15 Nov 2015:
+- EMMA-711: 
+	KOMP ESC --> fix to map to MTA-SangerMP-Standard-Form.pdf
+	
 05 Oct 2015:
-- Add allele project 'MGP' for bespoke Sanger lines
+- Add allele project 'MGP' for bespoke Sanger lines to pass the phenotyping attempts
 - Clean MTA assignment rules
 
 24 Sep 2015: 
