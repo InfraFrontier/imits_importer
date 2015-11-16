@@ -1314,7 +1314,9 @@ if ($original_id_str < 10000) {
       }
       &execute_query($sql, $emma_dbh);
       # Check MTA information
-      if (defined($mta_file) && defined($current_mta_file) && $mta_file ne $current_mta_file) {
+      print STDERR "MTA FILE: $mta_file, $current_mta_file\n";
+      if (defined($mta_file) && ((defined($current_mta_file) && $mta_file ne $current_mta_file) || !defined($current_mta_file))) {
+      	print STDERR "UPDATE MTA FILE: $mta_file\n";
 	$sql = "UPDATE strains SET mta_file='$mta_file' WHERE id_str='$id_str'";
 	&execute_query($sql, $emma_dbh);
       }
@@ -1680,10 +1682,10 @@ sub compute_strain_nomenclature {
          
 sub compute_mta_file {
   my ($pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele, $mi_date) = @_;
-    
+	
   my ($year, $month, $day) = ($mi_date =~ m/^(\d+)\-(\d+)\-(\d+)/);
-  print STDOUT "YEAR $year\n";
-  print STDOUT "compute_mta_file: $pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele\n";
+  $log->info("YEAR" . $mi_date);
+  $log->info("compute_mta_file: $pipeline, $repository, $distribution_center, $consortium, $phenotyping_attempt, $allele\n");
   my $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
 
   # BUSINESS RULE 1: IKMC (iMits) strains produced by HMGU 
@@ -1706,7 +1708,8 @@ sub compute_mta_file {
       # tm1b: Reporter-tagged deletion allele (post-Cre)
       $mta_file = 'HMGU-SMTA-EMMA_2014.pdf';
     }
-    $log->info($mta_file);
+    $log->info("=======WTSI MTA FILE:$mta_file");
+    $log->error("=======WTSI MTA FILE:$mta_file");
     return $mta_file;
   }
   
@@ -1717,6 +1720,9 @@ sub compute_mta_file {
   # KOMP ESC/CRISPR/ncRNA lines --> MTA-SangerMP-Standard-Form.pdf
   
   if ($repository eq 'SANG' || $distribution_center eq 'SANG') {
+  	$log->warn("WTSI Business rules: $repository $distribution_center $pipeline");
+  	#exit 1;
+	
   	if ($pipeline eq 'EUCOMM') {
   		$mta_file = "MTA_EUCOMM_for_EMMA_SANG.pdf"
   	} 
