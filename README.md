@@ -5,7 +5,7 @@ README
 
 The imits restful importer requires a configuration file CFG.pl to be set up locally and excluded from GitHub using gitignore. The contents of the configuration file (shown below for reference) should be set up with the variables shown for local database access and values supplied by Mouse Informatics, EMBL-EBI for $IMITSPASSWD and $IMITSUSER:
 
-
+Variables for $USERSVN and $PASSWDSVN added 19/11/2015
 
 
 package CFG;
@@ -25,7 +25,8 @@ package CFG;
  $IMITSPASSWD= 'XXXXXXXX';
  $IMITSUSER = "XXXXXXXX";
 
-
+ $USERSVN   = "xxxxxxxx";
+ $PASSWDSVN = "xxxxxxxx";
 
 
 Please refer to import_iMits_RESTFUL.pl for usage.
