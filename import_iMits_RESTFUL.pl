@@ -875,15 +875,15 @@ sub processAttempts {
 	    #my $new_geno_file = "EM0".$new_id_str."_geno.pdf";
 	    my $genoFileEmmaIdPrefix;
 	if ($new_id_str < 10000) {
-        $genoFileEmmaIdPrefix = 'EM:0';
+        $genoFileEmmaIdPrefix = 'EM0';
       } else {
-              $genoFileEmmaIdPrefix = 'EM:';
+              $genoFileEmmaIdPrefix = 'EM';
               }
 		my $new_geno_file = $genoFileEmmaIdPrefix.$new_id_str."_geno.pdf";
               if ($new_id_str && $genotype_file) {
 	      system("cp /nfs/panda/emma/genotype_protocols/$genotype_file /nfs/panda/emma/genotype_protocols/$new_geno_file");
-	      system("svn add /nfs/panda/emma/genotype_protocols/$new_geno_file --username philw --password 9IDP26TI");
-	      system("svn commit -m \"\" /nfs/panda/emma/genotype_protocols/$new_geno_file --username philw --password 9IDP26TI");
+	      system("svn add /nfs/panda/emma/genotype_protocols/$new_geno_file --username $CFG::USERSVN --password $CFG::PASSWDSVN");
+	      system("svn commit -m \"\" /nfs/panda/emma/genotype_protocols/$new_geno_file --username $CFG::USERSVN --password $CFG::PASSWDSVN");
 	    }
 
 	    if ($repository eq 'SANG') {
