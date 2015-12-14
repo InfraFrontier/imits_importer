@@ -1693,7 +1693,7 @@ sub compute_mta_file {
   # ELSE (i.e. if MI date is 25 Oct 2011 or later) THEN set strains.mta_file = 'HMGU-SMTA-EMMA_2014.pdf'
   # tm1b/tm1c: I understand there is no MI date for tm1b strains (but rather a Cre excision complete date). 
   # Anyway, ALL Cre or Frt excised strains produced by HMGU need to be linked to 'HMGU-SMTA-EMMA_2014.pdf'.      
-  if ($distribution_center eq 'HMGU') {
+  if ($repository eq 'HMGU') {
   	$log->debug($allele);
     # Check allele nomenclature
     if ($allele =~ /tm\d+a/ || $allele =~ /tm\d+e/) {
@@ -1730,9 +1730,12 @@ sub compute_mta_file {
   		$mta_file = "MTA-Sanger-Standard-form_EUCOMMTools.pdf";
   	}
   	elsif ($pipeline eq 'KOMP-CSD') {
-  		$mta_file = "MTA-Sanger-Standard-Form.pdf";
+  		# WRONG MTA 
+  		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
   	}
   	elsif ($pipeline eq 'Sanger MGP') {
+  		# WTSI KOMP lines with wrong (old) standard form --> 
+  		# most KOMP strains (looks like working in principle, but  MTA-Sanger-Standard-Form.pdf instead of MTA-SangerMP-Standard-Form.pdf)									
   		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
   	} else {
   		die "WTSI lines: There are no business rule to associate an MTA file for pipeline $pipeline";

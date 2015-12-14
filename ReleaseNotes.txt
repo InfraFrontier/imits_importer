@@ -1,8 +1,13 @@
 Release Notes
 
+14 Dec 2015:
+- EMMA-711:
+	KOMP ESC --> fixed again to map to MTA-SangerMP-Standard-Form.pdf
+	HMGU --> make sure that the rules works for repository not for distribution center
+	
 16 Nov 2015:
 - EMMA-676: WTSI/MRC MTA workflow:
-	Fix the issue with WTSI/MRC MTA not assigned. The issue was the fact that MTA were
+	Fixed the issue with WTSI/MRC MTA not assigned. The issue was the fact that MTA were
 	never assigned. 
 	
 15 Nov 2015:
