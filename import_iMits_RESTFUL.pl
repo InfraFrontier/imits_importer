@@ -3,7 +3,6 @@
 Copyright 2015 EMBL - European Bioinformatics Institute (EMBL-EBI)
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
 	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
@@ -26,10 +25,10 @@ use Log::Log4perl qw(:easy);
 Log::Log4perl->init("log.conf");
 my $log = Log::Log4perl->get_logger("iMitsImport");
 
+#--
 ## load configuration
 eval { require "CFG.pl" } ||
-  die "Configuration file 'CFG.pl' was not found.\n";
-
+     die "Configuration file 'CFG.pl' was not found.\n";
 my $countStock = 0;
 my %stockStrains = ();
 my @stocks = ();
@@ -84,12 +83,11 @@ if ($help) {
 
 }
 
+my $komp2_dbh;
 my $emma_dbh = DBI->connect($CFG::DSN, $CFG::USER, $CFG::PASSWD,
 			    {
 			     InactiveDestroy => 1, RaiseError => 1, PrintError => 1}
 			   ) or die "Unable to connect: $DBI::errstr\n";
-
-my $komp2_dbh;
 
 build_ilar_codes();
 processAttempts();
@@ -109,12 +107,10 @@ sub callRESTFUL {
 	
     $nb_tries++;
 	
-    print $url . "\n";
-        
-    my $curl_command = "curl --globoff --basic --user $CFG::IMITSUSER:$CFG::IMITSPASSWD -X GET '$url' --silent";
-    $json_result =`$curl_command`;
-	
-    #print $json_result . "\n";
+	print $url . "\n" if ($debug);
+        my $curl_command = "curl --globoff --basic --user $CFG::IMITSUSER:$CFG::IMITSPASSWD -X GET '$url' --silent";
+        print $curl_command . "\n";
+	$json_result =`$curl_command`;
 	
     if ($json_result =~ m/Please try again later/) {
       print STDERR "Error Fetching data from iMITS.\n";
@@ -243,7 +239,7 @@ sub processAttempts {
 
 	$colony_prefix = $decoded->{'colony_name'};
 	$log->info("Colony name:        $colony_prefix");
-
+$log->debug("STRAIN name:        $strain_name");
 	# get the parent colony prefix
 
 	if ($phenotyping_arg) {
@@ -287,7 +283,63 @@ sub processAttempts {
 	$marker_symbol = $decoded->{'marker_symbol'};
 	$epd_id = $decoded->{'es_cell_name'};
 
-	$log->info("Repository:         $repository");
+		$log->info("Repository:         $repository");
+		$test_cross = $decoded->{'test_cross_strain_name'};
+		$back_cross = $decoded->{'colony_background_strain_name'};
+		my $distribution_info = $decoded->{"distribution_centres_attributes"};
+		$emma = 0;#moved from line 341 to allow being set from crispr code
+		# For the time being we only report CRISPR CAS9 strains assuming the nomenclature will be correct
+
+		if ($is_crispr_cas9 == 1 && $genotype_confirmed) {
+			$test_cross = $decoded->{"blast_strain_name"};
+			#moved to after attribute loop		    my $ilar = &get_ilar_code($repository);
+			#    $endonuclease_mediated_mutations{$colony_prefix} = $marker_symbol . "<em#" . $ilar . ">";
+			#call a subroutine to  grab colonies_attributes field from json response to get f1 colonies produced
+			#by this mi then iterate over ignoring genotype confirmed false results.
+			#&crispr_lines;
+			$pipeline = "CRISPR/CAS9";#pipeline_name not suppied from json response for crisp/cas9 lines
+			my($colonies_attributes,$dist_centre_attributes,$attributes_genotype_confirmed,$attributes_allele_name,
+                 	$attributes_mgi_allele_id,$attributes_name,$attributes_report_to_public,
+		 	$distattribute_is_distributed_by_emma,$distattribute_deposited_material_name,
+		 	$distattribute_centre_name);
+			#my $crispr_blast_strain_name = $decoded->{"blast_strain_name"}; 
+			$colonies_attributes = $decoded->{"colonies_attributes"};
+         		#Iterate over colonies ignoring genotype_confirmed=false
+         		for (my $i = 0; $i < scalar(@{$colonies_attributes}); $i++) { 
+				$dist_centre_attributes = $colonies_attributes->[$i]->{"distribution_centres_attributes"};
+				$attributes_report_to_public = $colonies_attributes->[$i]->{"report_to_public"};
+		 		$attributes_genotype_confirmed = $colonies_attributes->[$i]->{"genotype_confirmed"};
+                         next if $attributes_genotype_confirmed ne 'true';
+			 next if $attributes_report_to_public ne 'true';
+				$emma=1;
+                 		#$attributes_allele_name = $colonies_attributes->[$i]->{"allele_name"};
+                 		$attributes_mgi_allele_id = $colonies_attributes->[$i]->{"mgi_allele_id"};
+				$attributes_allele_name = $colonies_attributes->[$i]->{"allele_symbol"};
+                 		$attributes_name = $colonies_attributes->[$i]->{"name"}; 
+                 		#log->debug("Genotype Confirmed: $attributes_genotype_confirmed \n");
+                 		#log->debug("Allele name: $attributes_allele_name\n");
+                 		#log->debug("MGI Allele ID: $attributes_mgi_allele_id\n");
+                 		#log->debug("Name: $attributes_name\n");
+ 		 		#log->debug("Distribution: $repository\n");
+		 		#log->debug("Consortium: $consortium\n");
+		 		#log->debug("MGI Ref from MI attempt: $mgi_accession_id\n");
+		 		#log->debug("Mutation Type: $mutation_type\n");
+				$allele = $attributes_allele_name;
+				$colony_prefix = $attributes_name;
+				#DISTRIBUTION CENTRE ATTRIBUTES
+				for (my $ii = 0; $ii < scalar(@{$dist_centre_attributes}); $ii++) {
+					$distattribute_is_distributed_by_emma = $dist_centre_attributes->[$ii]->{"is_distributed_by_emma"};
+					$distattribute_deposited_material_name = $dist_centre_attributes->[$ii]->{"deposited_material_name"};
+					$distattribute_centre_name = $dist_centre_attributes->[$ii]->{"centre_name"};
+					#log->debug("\n\nis dist by emma: $distattribute_is_distributed_by_emma\n");
+					#log->debug("deposited material name: $distattribute_deposited_material_name\n");
+					#log->debug("centre name: $distattribute_centre_name\n");
+				}
+                	}
+		        my $ilar = &get_ilar_code($repository);
+                        $endonuclease_mediated_mutations{$colony_prefix} = $marker_symbol . "<em#" . $ilar . ">";
+		}
+=pod	$log->info("Repository:         $repository");
 
 	$test_cross = $decoded->{'test_cross_strain_name'};
 	$back_cross = $decoded->{'colony_background_strain_name'};
@@ -320,7 +372,7 @@ sub processAttempts {
 		    
 	}
 
-
+=cut
 	if ($phenotyping_arg) {
 
 	  $mouse_allele_type = $decoded->{"mouse_allele_type"};
@@ -349,9 +401,9 @@ sub processAttempts {
 	# Get the distribution center information
 	# distribution_centres_attributes
 
-	my $distribution_info = $decoded->{"distribution_centres_attributes"};
+		#my $distribution_info = $decoded->{"distribution_centres_attributes"};MOVED TO LINE 276
 
-	$emma = 0;
+	#	$emma = 0; moved to line 277 to allow setting from crispr code.
 
 	# Phenotyping occurs for tm1b, tm1c, tm1d, tm1e
 	# Other use case: mouse_allele_type": ".1"
@@ -359,7 +411,7 @@ sub processAttempts {
 
 	  # if there are distribution centers, then loop through and look for the EMMA network
 
-	  if ($distribution_info && scalar(@{$distribution_info}) > 0) {
+		    if (defined $distribution_info && scalar(@{$distribution_info}) > 0) {
 
 	    # this field is always empty
 	    #print "Mouse allele symbol = " . $decoded->{"mouse_allele_symbol_superscript"} . "\n";
@@ -650,8 +702,8 @@ sub processAttempts {
 	    # For WTSI there are agreed rules with them using the ES cell and test cross backgrounds only - in the near future Dave Melvin and Vivek will give the go ahead to switch to same rules as the other centres
 	    # and their backcross data will be full populated
 	    # Lines that do not fall into one of the agreed patters get assigned STOCK
-			
-	    $strain_name = 
+
+	    $strain_name =			
 	      &compute_strain_nomenclature($escell_strain, 
 					   $test_cross, 
 					   $back_cross, 
@@ -671,6 +723,7 @@ sub processAttempts {
 	  $phenotype_description = "Potential phenotyping data in the <a href=\"https://www.mousephenotype.org/data/search?q=$marker_symbol\">IMPC portal</a>";
 	  if ($repository eq 'SANG') {
 	    $maintenance = "Current information may be viewed at the <a href=\"http://www.sanger.ac.uk/mouseportal/search?query=$marker_symbol\">Sanger mouse portal</a>: Viability at weaning, Fertility, General Observations";
+		$maintenance = "";
 	  }
 		    
 	  # MTAs specification: 
@@ -758,33 +811,36 @@ sub processAttempts {
 	      $genetic_description = '';
 	    }
 			
-	    # Alternative text when characterisation done
-	    # Cre-ER<sup>T2</sup> fusion gene activity is inducible and observed only following tamoxifen administration. When $sup_allele mice are bred with mice containing loxP-flanked sequence, tamoxifen-inducible, Cre-mediated recombination will result in deletion of the floxed sequences in the cells of the offspring";
+			# Alternative text when characterisation done
+			# Cre-ER<sup>T2</sup> fusion gene activity is inducible and observed only following tamoxifen administration. When $sup_allele mice are bred with mice containing loxP-flanked sequence, tamoxifen-inducible, Cre-mediated recombination will result in deletion of the floxed sequences in the cells of the offspring";
 
-	  } elsif ($allele =~/tm(\d{1})\(/) {
-	    print "Found Allele!!!! $allele\n";
-	    # Example targeted mutation 1, Wellcome Trust Sanger Institute
-	    my $tm_att = $1;
-	    my $serial_number = $tm_attempts{$tm_att};
-	    $mutation_type = 'TN/TC';
-	  } elsif ($allele =~/tm(1\.\d{1})\(/) {
+		    } elsif ($allele =~/tm(\d{1})\(/) {
+			print "Found Allele!!!! $allele\n";
+			# Example targeted mutation 1, Wellcome Trust Sanger Institute
+			my $tm_att = $1;
+			my $serial_number = $tm_attempts{$tm_att};
+			$mutation_type = 'TN/TC';
+		    } elsif ($allele =~/tm(1\.\d{1})\(/) {
 
-	    my $tm_att = $1;
-	    $tm_att =~ s/\./_/g;
-	    #my $serial_number = $tm_attempts{$tm_att};
-	    $mutation_type = 'TM/$tm_att';
+			my $tm_att = $1;
+			$tm_att =~ s/\./_/g;
+			#my $serial_number = $tm_attempts{$tm_att};
+			$mutation_type = 'TM/$tm_att';
 
-	  } else {
-	    print "ERROR: Allele type is unknown " . $allele . "\n";
-	    print $_ . "\n";
-	    $unknown_alleles{$colony_prefix} = $allele;
-	    next;
-	  }
+		    } elsif ($allele =~ /em\d/) {
+			print "THIS IS A CRISPR LINE ALLELE\n"  if ($debug);
+			$mutation_type='EM';
+			print "MUTATION TYPE: $mutation_type\n" if ($debug);
+			$genetic_description = "This mouse line originates from CRISPR zygote microinjection. For further details see the project page at <a href=\"http://www.mousephenotype.org/data/alleles/$mgi_accession_id\">the IMPC portal</a>.";
+		    } else {
+			print "ERROR: Allele type is unknown " . $allele . "\n";
+			print $_ . "\n";
+			$unknown_alleles{$colony_prefix} = $allele;
+			next;
+		    }
 
-	  #next;
-
-	  # In past lines went GLT and were flagged as to_emma=1 and hence were imported into the EMMA database. Subsequently if these were shown to have failed QC the status was left the same but the to_emma flag set to 0 and these line records should then be set to Retracted (R) in the EMMA database
-	  #
+		    # In past lines went GLT and were flagged as to_emma=1 and hence were imported into the EMMA database. Subsequently if these were shown to have failed QC the status was left the same but the to_emma flag set to 0 and these line records should then be set to Retracted (R) in the EMMA database
+		    #
 	  if ($consortium == "/IMPC") {
 	    print "\tAlllele: $urlallele\n";
 	    my $NEWgenetic_description  = $genetic_description;
@@ -868,7 +924,6 @@ sub processAttempts {
 	      $sql = "select freezing_started, archived, notes, breeding, archiving_method_id, males, females, male_bg_id, female_bg_id, embryo_state, maintenance, mutant_viable, mutant_fertile, require_homozygous, immunocompromised, current_sanitary_status, animal_husbandry, genotype_file from laboratories, archive, strains left join residues on res_id=residues.id where archive_id=archive.id and code_internal='$epd_id' and id_labo=lab_id_labo and submitted='$mi_date' and code = '$repository'";
 	    }
 			
-	    my ($freezing_started,$archived,$notes,$breeding,$archiving_method_id,$males,$females,$male_bg_id,$female_bg_id,$embryo_state,$maintenance,$mutant_viable,$mutant_fertile,$require_homozygous,$immunocompromised,$current_sanitary_status,$animal_husbandry, $genotype_file) = &execute_query($sql, $emma_dbh);
 
 	    $sql = "select id_str from laboratories, archive, strains where archive_id=archive.id and code_internal='$epd_id' and id_labo=lab_id_labo and submitted='$mi_date' and code = '$distribution_center' and str_access = 'P' and genotype_file is null"; # and colony_prefix = '$colony_prefix'";
 	    my ($new_id_str) = &execute_query($sql, $emma_dbh);
@@ -892,9 +947,11 @@ sub processAttempts {
 		my @maintenance = split(/Current/,$maintenance);
 		$maintenance = $maintenance[0];
 		$maintenance = $maintenance." Current information may be viewed at the <a href=\"http://www.sanger.ac.uk/mouseportal/search?query=$marker_symbol\">Sanger mouse portal</a>: Viability at weaning, Fertility, General Observations";
-	      } else {
+	      $maintenance = "";
+	} else {
 		$maintenance = "Current information may be viewed at the <a href=\"http://www.sanger.ac.uk/mouseportal/search?query=$marker_symbol\">Sanger mouse portal</a>: Viability at weaning, Fertility, General Observations";
-	      }
+	      $maintenance = "";
+	}
 	    }
 	    if ($material_deposited ne 'Live mice') { # frozen material sent
 	      $source = 35;
@@ -1232,8 +1289,10 @@ sub update_emma_database{
       }
 
       $sql = "INSERT INTO strains (available_to_order, res_id, code_internal, name, bg_id_bg, per_id_per, per_id_per_contact, archive_id, charact_gen, pheno_text, str_status,str_access,str_type,mta_file,maintenance, mutant_viable, mutant_fertile, require_homozygous, immunocompromised, colony_prefix, ls_consortium) VALUES ('$available_to_order','$res_id','$epd_id','$strain_name','3270','$id_per','$id_per_contact','$archive_id',\"$genetic_description\",\"$phenotype_description\",'$str_status','$str_access','MSR','$mta_file','$maintenance','$mutant_viable','$mutant_fertile','$require_homozygous','$immunocompromised', '$colony_name', '$consortium')";
-      &execute_query($sql, $emma_dbh);
+      $log->debug($sql);
+&execute_query($sql, $emma_dbh);
       my ($idStr) = &execute_query("SELECT id_str FROM strains WHERE name ='$strain_name'",$emma_dbh);
+$log->debug("\n\nSQL SQL SQL is ::: $idStr\n\n$strain_name\n\n");
 my $emmaIdPrefix = '';
 if ($idStr < 10000) {
 	$emmaIdPrefix = 'EM:0';
@@ -1245,13 +1304,19 @@ $sql = "UPDATE strains set emma_id = concat('$emmaIdPrefix','$idStr') WHERE name
 
 &execute_query($sql, $emma_dbh);
 	    
-      my ($new_id_str) = &execute_query("SELECT max(id_str) FROM strains", $emma_dbh);
-      $rtool_id = '9';
-      if ( index($consortium, 'EUCOMMToolsCre' ) != -1) {
-	$rtool_id = '10';
-      } 
-      $sql = "INSERT INTO rtools_strains (str_id_str, rtls_id) VALUES ($new_id_str,$rtool_id)";
-      &execute_query($sql, $emma_dbh);
+	    my ($new_id_str) = &execute_query("SELECT max(id_str) FROM strains", $emma_dbh);
+	   $rtool_id = '9';
+		if ( index($consortium, 'EUCOMMToolsCre' ) != -1) {
+		$rtool_id = '10';
+		}
+	if ($allele =~ /em\d/) {
+	#this is a crispr allele
+	#$rtool_id shouldn't be EUC as with other wtsi lines
+	#so set to 8 which is null
+	$rtool_id = '8';
+	} 
+	    $sql = "INSERT INTO rtools_strains (str_id_str, rtls_id) VALUES ($new_id_str,$rtool_id)";
+	    &execute_query($sql, $emma_dbh);
 	    
       $sql = "INSERT INTO availabilities_strains (str_id_str, avail_id) VALUES ($new_id_str,'3')";
       &execute_query($sql, $emma_dbh);
@@ -1268,11 +1333,11 @@ $sql = "UPDATE strains set emma_id = concat('$emmaIdPrefix','$idStr') WHERE name
       my ($original_id_str) = &check_existing_strain($strain_name, $epd_id, $colony_name, $mi_date, $id_labo, 0, 1);
 
       if ($original_id_str) {
-if ($original_id_str < 10000) { 
-	$emmaIdPrefix = 'EM:0';
-} else {
-	$emmaIdPrefix = 'EM:';
-}
+	if ($original_id_str < 10000) { 
+		$emmaIdPrefix = 'EM:0';
+	} else {
+		$emmaIdPrefix = 'EM:';
+	}
 	$sql = "UPDATE web_requests SET str_id_str = '$new_id_str', strain_id = CONCAT('$emmaIdPrefix','$new_id_str'), lab_id_labo = $id_labo WHERE str_id_str='$original_id_str' AND req_status ='TO_PR'";
 	&execute_query($sql, $emma_dbh);
       }
@@ -1282,7 +1347,6 @@ if ($original_id_str < 10000) {
 
     }				# NEW STRAIN 
 	
-    # EXISTING STRAIN
     elsif ($id_str) {
 
       # Update strain records
@@ -1312,6 +1376,12 @@ if ($original_id_str < 10000) {
 
 	$sql = "UPDATE rtools_strains SET  rtls_id=$rtool_id WHERE str_id_str=$id_str AND rtls_id=9";
       }
+      if ($allele =~ /em\d/ && $iCountRtool >= 1) {
+      print STDERR "Inserting rtools value of 8 for CRISPR/CAS9 lines \n";
+      $rtool_id = 8;
+      $sql = "UPDATE rtools_strains SET  rtls_id=$rtool_id WHERE str_id_str=$id_str AND rtls_id=9";
+      }
+
       &execute_query($sql, $emma_dbh);
       # Check MTA information
       print STDERR "MTA FILE: $mta_file, $current_mta_file\n";
@@ -1324,10 +1394,10 @@ if ($original_id_str < 10000) {
       # Update IMPC information
       &set_impc_phenotype_data_exists($colony_name, $impc_data_available,$phenotype_attempts);
       print "IMPC DATA HAS BEEN UPDATED AT LINE 1268 colony prefix is $colony_name\n\nIMPC data availability is $impc_data_available\n\npheno attempts is $phenotype_attempts\n\n";
-      if ($strain_name ne $current_strain_name) {
+      if ($strain_name ne $current_strain_name && defined $strain_name) {
 	print STDERR "Set new strain name for $id_str\t'$current_strain_name' to '$strain_name' (colony_prefix = '$colony_name')\n";
 	$sql = "UPDATE strains SET name='$strain_name' WHERE id_str='$id_str'";	# need to update name even if str_access = N or C to keep below code working                                                                                                     
-
+$log->debug("Strain name = $strain_name\nCurrent strain name = $current_strain_name");
 	&execute_query($sql, $emma_dbh);
       }
 
@@ -1503,10 +1573,17 @@ sub check_existing_strain{
   if (defined($id_labo) && $id_labo ne '') {
     my ($labo_code, $labo_name) = &execute_query("select code, name from laboratories where id_labo = $id_labo", $emma_dbh);
 	
-    # check first the colony name 
-    if (defined($colony_name) && length($colony_name) > 0 ) {
-      my ($id_q) = &execute_query("SELECT s.id_str FROM strains s, archive a WHERE s.archive_id=a.id and s.code_internal= '$epd_id' AND s.colony_prefix = '$colony_name' AND a.lab_id_labo $operator $id_labo AND a.submitted='$mi_date'", $emma_dbh);
-      $id_str = $id_q;
+	# check first the colony name 
+	if (defined($colony_name) && length($colony_name) > 0 ) {
+if (defined($epd_id)) {
+	    my ($id_q) = &execute_query("SELECT s.id_str FROM strains s, archive a WHERE s.archive_id=a.id and s.code_internal= '$epd_id' AND s.colony_prefix = '$colony_name' AND a.lab_id_labo $operator $id_labo AND a.submitted='$mi_date'", $emma_dbh);
+$id_str = $id_q;    
+} else {
+
+my ($id_q) = &execute_query("SELECT s.id_str FROM strains s, archive a WHERE s.archive_id=a.id AND s.colony_prefix = '$colony_name' AND a.lab_id_labo $operator $id_labo AND a.submitted='$mi_date'", $emma_dbh);
+$id_str = $id_q;
+}
+#$id_str = $id_q;
       if ($id_str) {
 	$log->debug("check_existing_strain ($b_same_lab): strain $id_str for colony prefix $colony_name - $strain_name - $epd_id - $mi_date - $id_labo ($labo_code) found.\n");
 	return $id_str;
@@ -1638,32 +1715,45 @@ sub compute_strain_nomenclature {
       $rule_number = 16;
       $strain_name = "B6NTac;B6N-$allele$ilar_code";
     }
-  } elsif (($escell_strain eq 'C57BL/6N-A<tm1Brd>/a') && $test_cross eq 'C57BL/6Dnk' && $back_cross eq 'C57BL/6Dnk') {
-    if ($repository eq 'SANG' || $repository eq 'CNR' || $repository eq 'ICS') {
-      $rule_number = 17;
-      $strain_name = "B6Dnk;B6N-A<tm1Brd> $allele$ilar_code";
-    } else {
-      $rule_number = 18;
-      $strain_name = "B6Dnk;B6N-$allele$ilar_code";
     }
-  } elsif ($escell_strain eq 'C57BL/6N-A<tm1Brd>/a' && ($test_cross eq 'C57BL/6NCrl' || $test_cross eq '') && $back_cross eq 'C57BL/6NCrl') {
-    $rule_number = 19;
-    $strain_name = "B6NCrl;B6N-A<tm1Brd> $allele$ilar_code";
-  } elsif ($escell_strain eq 'C57BL/6N-A<tm1Brd>/a' && $back_cross eq 'C57BL/6NJ') {
-    #$rule_number = 20;
-    $strain_name = "B6NJ;B6N-$allele$ilar_code";
-  } elsif ($escell_strain eq 'C57BL/6N' && $test_cross eq 'C57BL/6NCrl' && $back_cross eq 'C57BL/6NCrl') {
-    $rule_number = 20;
-    $strain_name = "B6NCrl;B6N-$allele$ilar_code";
-  } elsif (($escell_strain eq 'C57BL/6N-A<tm1Brd>/a') && ($test_cross eq 'C57BL/6N') && ($back_cross eq 'C57BL/6N')) {
-    if ($repository eq 'SANG' || $repository eq 'CNR' || $repository eq 'ICS') {
-      $rule_number = 21;
-      $strain_name = "C57BL/6N-A<tm1Brd> $allele$ilar_code";
-    } else {
-      $rule_number = 22;
-      $strain_name = "C57BL/6N-$allele$ilar_code";
+	elsif (($escell_strain eq 'C57BL/6N-A<tm1Brd>/a') && $test_cross eq 'C57BL/6Dnk' && $back_cross eq 'C57BL/6Dnk'){
+        if ($repository eq 'SANG' || $repository eq 'CNR' || $repository eq 'ICS'){
+            $rule_number = 17;
+            $strain_name = "B6Dnk;B6N-A<tm1Brd> $allele$ilar_code";
+        }
+        else{
+            $rule_number = 18;
+            $strain_name = "B6Dnk;B6N-$allele$ilar_code";
+        }
     }
-  } else {
+    elsif ($escell_strain eq 'C57BL/6N-A<tm1Brd>/a' && ($test_cross eq 'C57BL/6NCrl' || $test_cross eq '') && $back_cross eq 'C57BL/6NCrl'){
+        $rule_number = 19;
+        $strain_name = "B6NCrl;B6N-A<tm1Brd> $allele$ilar_code";
+    }
+    elsif ($escell_strain eq 'C57BL/6N-A<tm1Brd>/a' && $back_cross eq 'C57BL/6NJ'){
+        $rule_number = 20;
+        $strain_name = "B6NJ;B6N-$allele$ilar_code";
+    }
+    elsif ($escell_strain eq 'C57BL/6N' && $test_cross eq 'C57BL/6NCrl' && $back_cross eq 'C57BL/6NCrl'){
+        $rule_number = 20;
+        $strain_name = "B6NCrl;B6N-$allele$ilar_code";
+    }
+    elsif (($escell_strain eq 'C57BL/6N-A<tm1Brd>/a') && ($test_cross eq 'C57BL/6N') && ($back_cross eq 'C57BL/6N')){
+        if ($repository eq 'SANG' || $repository eq 'CNR' || $repository eq 'ICS'){
+              $rule_number = 21;
+              $strain_name = "C57BL/6N-A<tm1Brd> $allele$ilar_code";
+        }
+        else {
+              $rule_number = 22;
+              $strain_name = "C57BL/6N-$allele$ilar_code";
+        }
+    }
+    elsif ($allele =~ /em\d/){
+    #THIS IS A CRISPR LINE GENE SYMBOL PREFIX ALREADY PRESENT IN $ALLELE USED TO GENERATE STRAIN NAME AS RECCOMMENDED BY Raffaele
+    $strain_name = "$test_cross-$allele$ilar_code";
+    $rule_number = 24;
+    $log->debug("STRAIN name:        $strain_name");} 
+    else {
     $rule_number = 23;
     $strain_name = "STOCK $allele$ilar_code";
     $log->debug("STOCK nomenclature for:\t");
@@ -1737,7 +1827,10 @@ sub compute_mta_file {
   		# WTSI KOMP lines with wrong (old) standard form --> 
   		# most KOMP strains (looks like working in principle, but  MTA-Sanger-Standard-Form.pdf instead of MTA-SangerMP-Standard-Form.pdf)									
   		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
-  	} else {
+  	} 
+        elsif ($repository eq 'SANG' && $pipeline eq 'CRISPR/CAS9') {
+                $mta_file = "MTA-SangerMP-Standard-Form.pdf";
+        } else {
   		die "WTSI lines: There are no business rule to associate an MTA file for pipeline $pipeline";
   	}
   	$log->info($mta_file);
@@ -1771,6 +1864,25 @@ sub compute_mta_file {
       $mta_file = "Master_Mouse_MTA_for_IMPC_Jan-2013.doc";
     } elsif ($repository eq 'SEAT' && $distribution_center eq '') {
     } else {
+	if (($pipeline eq 'EUCOMMTools' || $pipeline eq 'EUCOMMToolsCre')){ 
+                if( $repository eq 'SANG') {
+	                $mta_file = "MTA-Sanger-Standard-form_EUCOMMTools.pdf";
+                    } elsif( $repository eq 'CNR') {
+                        $mta_file = "MTA-CNR-Standard-form_EUCOMMTools.pdf";
+                       }
+ 
+	} elsif ($pipeline eq 'KOMP-CSD' && $repository eq 'SANG') {
+	    $mta_file = "MTA-Sanger-Standard-Form_KOMP.pdf";
+	} elsif ($pipeline eq 'KOMP-Regeneron' && $repository eq 'IMG') {
+	    $mta_file = "MTA_IMG.pdf";
+	} elsif ($consortium eq 'BaSH' && $repository eq 'MRC') {
+	    $mta_file = "Master_Mouse_MTA_for_IMPC_Jan-2013.doc";
+	} elsif ($repository eq 'SEAT' && $distribution_center eq '') {
+	} elsif ($repository eq 'SANG' && $pipeline eq 'CRISPR/CAS9') {
+		$mta_file = "MTA-SangerMP-Standard-Form.pdf";
+	} else {
+	    $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
+	}
       $mta_file = "MTA_EUCOMM_for_EMMA_$repository.pdf";
     }
   }
@@ -1813,16 +1925,16 @@ sub check_impc_data_exists {
 }
 
 sub check_pipeline_project {
-  my ($pipeline, $allele) = @_;
-  my $allele_project = undef;
+    my ($pipeline, $allele) = @_;
+    my $allele_project = undef;
 
-  if (defined($pipeline)) {
-    if ($pipeline =~ /KOMP/ || $pipeline =~ /EUCOMM/) {
-      $allele_project = ($pipeline eq 'KOMP-CSD' || $pipeline eq 'KOMP-Regeneron') ? "KOMP" : "EUCOMM";
-    } elsif ($pipeline eq "Sanger MGP" && $allele =~ /KOMP/) {
-      $allele_project = "KOMP";
-    } elsif ($pipeline eq "Sanger MGP" && $allele =~ /MGP/) {
-      $allele_project = "MGP";      
+    if (defined($pipeline)) {
+	if ($pipeline =~ /KOMP/ || $pipeline =~ /EUCOMM/) {
+	    $allele_project = ($pipeline eq 'KOMP-CSD' || $pipeline eq 'KOMP-Regeneron') ? "KOMP" : "EUCOMM";
+	} elsif ($pipeline eq "Sanger MGP" && $allele =~ /KOMP/) {
+	    $allele_project = "KOMP";
+	} elsif ($pipeline eq "CRISPR/CAS9") {
+	    $allele_project = $pipeline;
     } else {
       print "ERROR: unknown allele project for pipeline '$pipeline' and allele '$allele' - PLEASE FIX THIS - and restart the script\n";
       exit 1;
