@@ -1,5 +1,12 @@
 Release Notes
 
+12 Jan 2016
+Code modified to import Crispr lines into InfraFrontier.
+Majority of changes found at:
+- lines 293-341
+- lines 830-835
+- lines 1312-1317
+
 14 Dec 2015:
 - EMMA-711:
 	KOMP ESC --> fixed again to map to MTA-SangerMP-Standard-Form.pdf
